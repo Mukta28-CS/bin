@@ -17,7 +17,7 @@ transform = transforms.Compose([
 
 # --- 3. Load dataset (make sure you have folders train/dry, train/wet, valid/dry, valid/wet) ---
 train_data = datasets.ImageFolder("data/train", transform=transform)
-val_data = datasets.ImageFolder("data/valid", transform=transform)
+val_data = datasets.ImageFolder("data/val", transform=transform)
 
 train_loader = torch.utils.data.DataLoader(train_data, batch_size=16, shuffle=True)
 val_loader = torch.utils.data.DataLoader(val_data, batch_size=16)
