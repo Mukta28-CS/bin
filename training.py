@@ -3,39 +3,59 @@ import torch.nn as nn
 import torch.optim as optim
 from torchvision import datasets, transforms
 from torchvision.models import efficientnet_v2_s, EfficientNet_V2_S_Weights
+from torch.utils.data import DataLoader
+import matplotlib.pyplot as plt
+import os
 
-# --- 1. Setup ---
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-num_classes = 2  # Dry, Wet
-# --- 2. Data transforms ---
+# Force CUDA only
+device = torch.device("cuda")
+print("Using device:", device)
+
+# Define transforms for image preprocessing
 transform = transforms.Compose([
     transforms.Resize((384, 384)),
     transforms.ToTensor(),
-    transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                         std=[0.229, 0.224, 0.225])
+    transforms.Normalize(
+        mean=[0.485, 0.456, 0.406],
+        std=[0.229, 0.224, 0.225]
+    )
 ])
 
-# --- 3. Load dataset (make sure you have folders train/dry, train/wet, valid/dry, valid/wet) ---
-train_data = datasets.ImageFolder("data/train", transform=transform)
-val_data = datasets.ImageFolder("data/val", transform=transform)
+# Load training and validation datasets
+train_dataset = datasets.ImageFolder(root='data/train', transform=transform)
+val_dataset = datasets.ImageFolder(root='data/val', transform=transform)
 
-train_loader = torch.utils.data.DataLoader(train_data, batch_size=16, shuffle=True)
-val_loader = torch.utils.data.DataLoader(val_data, batch_size=16)
+train_loader = DataLoader(train_dataset, batch_size=16, shuffle=True)
+val_loader = DataLoader(val_dataset, batch_size=16, shuffle=False)
 
-# --- 4. Load pretrained model ---
-model = efficientnet_v2_s(weights=EfficientNet_V2_S_Weights.DEFAULT)
-model.classifier[1] = nn.Linear(model.classifier[1].in_features, num_classes)
+# Load pretrained EfficientNet V2 Small with ImageNet weights
+weights = EfficientNet_V2_S_Weights.IMAGENET1K_V1
+model = efficientnet_v2_s(weights=weights)
+
+# Replace classifier for 2-class classification
+num_features = model.classifier[1].in_features
+model.classifier[1] = nn.Linear(num_features, 2)
 model = model.to(device)
 
-# --- 5. Loss & Optimizer ---
+# Define loss function and optimizer
 criterion = nn.CrossEntropyLoss()
 optimizer = optim.Adam(model.parameters(), lr=0.001)
 
-# --- 6. Training loop ---
-epochs = 5
-for epoch in range(epochs):
+# Training settings
+num_epochs = 10
+train_losses = []
+train_accuracies = []
+val_losses = []
+val_accuracies = []
+
+# Training + Validation loop
+for epoch in range(num_epochs):
+    # Training phase
     model.train()
-    total_loss = 0
+    running_loss = 0.0
+    correct = 0
+    total = 0
+
     for images, labels in train_loader:
         images, labels = images.to(device), labels.to(device)
 
@@ -45,10 +65,74 @@ for epoch in range(epochs):
         loss.backward()
         optimizer.step()
 
-        total_loss += loss.item()
+        running_loss += loss.item()
+        _, predicted = outputs.max(1)
+        total += labels.size(0)
+        correct += predicted.eq(labels).sum().item()
 
-    print(f"Epoch [{epoch + 1}/{epochs}], Loss: {total_loss / len(train_loader):.4f}")
+    train_loss = running_loss / len(train_loader)
+    train_acc = 100 * correct / total
+    train_losses.append(train_loss)
+    train_accuracies.append(train_acc)
 
-# --- 7. Save trained model weights ---
-torch.save(model.state_dict(), "efficientnet_waste.pth")
-print("✅ Model saved as efficientnet_waste.pth")
+    # Validation phase
+    model.eval()
+    val_running_loss = 0.0
+    val_correct = 0
+    val_total = 0
+
+    with torch.no_grad():
+        for images, labels in val_loader:
+            images, labels = images.to(device), labels.to(device)
+            outputs = model(images)
+            loss = criterion(outputs, labels)
+
+            val_running_loss += loss.item()
+            _, predicted = outputs.max(1)
+            val_total += labels.size(0)
+            val_correct += predicted.eq(labels).sum().item()
+
+    val_loss = val_running_loss / len(val_loader)
+    val_acc = 100 * val_correct / val_total
+    val_losses.append(val_loss)
+    val_accuracies.append(val_acc)
+
+    print(f"Epoch [{epoch+1}/{num_epochs}], "
+          f"Train Loss: {train_loss:.4f}, Train Acc: {train_acc:.2f}%, "
+          f"Val Loss: {val_loss:.4f}, Val Acc: {val_acc:.2f}%")
+
+# Plotting loss and accuracy graphs
+epochs = range(1, num_epochs + 1)
+
+plt.figure(figsize=(12, 5))
+
+# Loss Plot
+plt.subplot(1, 2, 1)
+plt.plot(epochs, train_losses, label='Train Loss', marker='o')
+plt.plot(epochs, val_losses, label='Val Loss', marker='o')
+plt.xlabel('Epochs')
+plt.ylabel('Loss')
+plt.title('Train vs Validation Loss')
+plt.legend()
+
+# Accuracy Plot
+plt.subplot(1, 2, 2)
+plt.plot(epochs, train_accuracies, label='Train Accuracy', marker='o')
+plt.plot(epochs, val_accuracies, label='Val Accuracy', marker='o')
+plt.xlabel('Epochs')
+plt.ylabel('Accuracy (%)')
+plt.title('Train vs Validation Accuracy')
+plt.legend()
+
+plt.tight_layout()
+
+# Save the plot
+plot_filename = "training_results.png"
+plt.savefig(plot_filename)
+plt.show()
+print(f"Plot saved as {plot_filename}")
+
+# Save the trained model
+model_path = "efficientnetv2s_drywet.pth"
+torch.save(model.state_dict(), model_path)
+print(f"Model saved to {model_path}")
