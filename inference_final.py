@@ -31,7 +31,7 @@ num_features = model.classifier[1].in_features
 model.classifier[1] = nn.Linear(num_features, len(class_names))
 
 # Load trained weights
-model.load_state_dict(torch.load("checkpoints/efficientnetv2s_epoch_50.pth", map_location=device))
+model.load_state_dict(torch.load("checkpoints/efficientnetv2s_epoch150.pth", map_location=device))
 model = model.to(device)
 model.eval()
 
