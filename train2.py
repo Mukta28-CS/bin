@@ -104,7 +104,7 @@ for epoch in range(num_epochs):
           f"Train Loss: {train_loss:.4f}, Train Acc: {train_acc:.2f}%, "
           f"Val Loss: {val_loss:.4f}, Val Acc: {val_acc:.2f}%")
 
-    # 🔥 Save checkpoint every 10 epochs
+    # Save checkpoint every 10 epochs
     if (epoch + 1) % 10 == 0:
         checkpoint_path = f"checkpoints/efficientnetv2s_epoch{epoch+1}.pth"
         torch.save(model.state_dict(), checkpoint_path)
@@ -123,7 +123,7 @@ plt.xlabel('Epochs')
 plt.ylabel('Loss')
 plt.title('Train vs Validation Loss')
 plt.legend()
-plt.xticks(range(0, num_epochs + 1, 10))  # 👈 Show ticks every 10 epochs
+plt.xticks(range(0, num_epochs + 1, 10))  #  Show ticks every 10 epochs
 
 # Accuracy Plot
 plt.subplot(1, 2, 2)
@@ -133,7 +133,7 @@ plt.xlabel('Epochs')
 plt.ylabel('Accuracy (%)')
 plt.title('Train vs Validation Accuracy')
 plt.legend()
-plt.xticks(range(0, num_epochs + 1, 10))  # 👈 Show ticks every 10 epochs
+plt.xticks(range(0, num_epochs + 1, 10))  #  Show ticks every 10 epochs
 
 plt.tight_layout()
 
